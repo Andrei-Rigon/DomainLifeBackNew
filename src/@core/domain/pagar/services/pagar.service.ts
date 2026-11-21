@@ -28,8 +28,10 @@ export class PagarService {
   ) {}
 
   async create(createPagarDto: CreatePagarDto) {
-    await this.garantirConta(createPagarDto.id_count);
-    return this.pagarRepository.create({ ...createPagarDto, ...this.resolverSituacao(createPagarDto) });
+    const conta = await this.garantirConta(createPagarDto.id_count);
+    // Se não informar, a parcela herda o "contabilizar" da conta (ex.: assinatura paga no cartão).
+    const contabilizar = createPagarDto.contabilizar ?? conta.contabilizar ?? true;
+    return this.pagarRepository.create({ ...createPagarDto, contabilizar, ...this.resolverSituacao(createPagarDto) });
   }
 
   async gerarParcelas(dto: GerarParcelasDto) {
@@ -56,6 +58,8 @@ export class PagarService {
         valor_pago: null,
         data_vencimento: somarMeses(dto.data_primeiro_vencimento, i),
         data_pagamento: null,
+        // Herda da conta se não informado (assinatura paga no cartão já nasce fora do caixa)
+        contabilizar: dto.contabilizar ?? conta.contabilizar ?? true,
       };
       return { ...parcela, ...this.resolverSituacao(parcela) };
     });

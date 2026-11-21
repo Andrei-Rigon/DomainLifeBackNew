@@ -1,13 +1,14 @@
+import { Transform, Type } from 'class-transformer';
+import { paraBooleano } from '../../shared/contabilizar';
 import { PartialType } from '@nestjs/mapped-types';
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, MaxLength, Min, IsBoolean } from 'class-validator';
 
-export const TIPOS_LANCAMENTO = ['despesa', 'receita'] as const;
+export const TIPOS_LANCAMENTO = ['despesa', 'receita', 'transferencia'] as const;
 export const FORMAS_PAGAMENTO = ['pix', 'debito', 'credito', 'dinheiro', 'outro'] as const;
 export const ORIGENS = ['manual', 'ciel', 'whatsapp', 'importacao'] as const;
 
 export class CreateLancamentoDto {
-  @IsIn(TIPOS_LANCAMENTO, { message: 'tipo deve ser despesa ou receita' })
+  @IsIn(TIPOS_LANCAMENTO, { message: 'tipo deve ser despesa, receita ou transferencia' })
   tipo!: (typeof TIPOS_LANCAMENTO)[number];
 
   @Type(() => Number)
@@ -41,6 +42,24 @@ export class CreateLancamentoDto {
   @IsOptional()
   @IsString()
   observacao?: string;
+
+  // Contabilizar no caixa. Se não vier: true (ou o padrão da conta, nas parcelas).
+  @IsOptional()
+  @Transform(paraBooleano)
+  @IsBoolean({ message: 'contabilizar deve ser true ou false' })
+  contabilizar?: boolean;
+
+  // Conta bancária (opcional). Na transferência é obrigatória: é a conta de ORIGEM.
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'id_conta_bancaria deve ser o id de uma conta bancária' })
+  id_conta_bancaria?: number | null;
+
+  // Só na transferência (obrigatória): conta de DESTINO.
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'id_conta_destino deve ser o id de uma conta bancária' })
+  id_conta_destino?: number | null;
 }
 
 export class UpdateLancamentoDto extends PartialType(CreateLancamentoDto) {}

@@ -331,7 +331,7 @@ describe('Resumo do mês, CSV e /ciel financeiro', () => {
     const bytes: Buffer = res.body;
     expect([...bytes.subarray(0, 3)]).toEqual([0xef, 0xbb, 0xbf]); // UTF-8 com BOM
     const linhas = bytes.toString('utf8').replace(/^﻿/, '').split('\r\n').filter(Boolean);
-    expect(linhas[0]).toBe('Data;Tipo;Descrição;Categoria;Valor;Forma de pagamento;Origem');
+    expect(linhas[0]).toBe('Data;Tipo;Descrição;Categoria;Valor;Forma de pagamento;Origem;Contabilizado;Conta;Conta destino');
     expect(linhas.some((l) => l.includes(';Mercado;50,50;'))).toBe(true);
     expect(linhas.some((l) => l.includes('Contas (parcelas pagas);40,00;;parcela'))).toBe(true);
     expect(linhas.some((l) => l.includes(`"'=SOMA(1;2)"`))).toBe(true); // sem injeção de fórmula no Excel

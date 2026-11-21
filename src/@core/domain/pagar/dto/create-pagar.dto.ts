@@ -1,15 +1,6 @@
-import { Type } from 'class-transformer';
-import {
-  IsDateString,
-  IsEnum,
-  IsInt,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { paraBooleano } from '../../shared/contabilizar';
+import { IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, IsBoolean } from 'class-validator';
 
 export enum StatusPagar {
   PENDENTE = 'Pendente',
@@ -56,4 +47,16 @@ export class CreatePagarDto {
   @IsOptional()
   @IsEnum(StatusPagar, { message: 'status deve ser Pendente, Paga ou Atrasada' })
   status?: StatusPagar;
+
+  // Contabilizar no caixa. Se não vier: true (ou o padrão da conta, nas parcelas).
+  @IsOptional()
+  @Transform(paraBooleano)
+  @IsBoolean({ message: 'contabilizar deve ser true ou false' })
+  contabilizar?: boolean;
+
+  // Conta bancária de onde sai/entra o dinheiro (opcional)
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'id_conta_bancaria deve ser o id de uma conta bancária' })
+  id_conta_bancaria?: number | null;
 }

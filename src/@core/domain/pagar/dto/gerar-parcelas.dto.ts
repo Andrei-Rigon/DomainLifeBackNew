@@ -1,5 +1,6 @@
-import { Type } from 'class-transformer';
-import { IsDateString, IsInt, IsNumber, IsOptional, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { paraBooleano } from '../../shared/contabilizar';
+import { IsDateString, IsInt, IsNumber, IsOptional, Min, IsBoolean } from 'class-validator';
 
 export class GerarParcelasDto {
   @Type(() => Number)
@@ -22,4 +23,10 @@ export class GerarParcelasDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   valor_parcela?: number;
+
+  // Contabilizar no caixa. Se não vier: true (ou o padrão da conta, nas parcelas).
+  @IsOptional()
+  @Transform(paraBooleano)
+  @IsBoolean({ message: 'contabilizar deve ser true ou false' })
+  contabilizar?: boolean;
 }

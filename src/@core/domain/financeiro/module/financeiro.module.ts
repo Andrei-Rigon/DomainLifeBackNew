@@ -6,9 +6,10 @@ import { PagarModule } from '../../pagar/module/pagar.module';
 import { ReceberModule } from '../../receber/module/receber.module';
 import { PerfilFinanceiroModule } from '../../perfil-financeiro/module/perfil-financeiro.module';
 import { CategoriasFinanceirasModule } from '../../categorias-financeiras/module/categorias-financeiras.module';
+import { ContasBancariasModule } from '../../contas-bancarias/module/contas-bancarias.module';
 
 @Module({
-  imports: [LancamentosModule, PagarModule, ReceberModule, CategoriasFinanceirasModule, PerfilFinanceiroModule],
+  imports: [LancamentosModule, PagarModule, ReceberModule, CategoriasFinanceirasModule, PerfilFinanceiroModule, ContasBancariasModule],
   controllers: [FinanceiroController],
   providers: [FinanceiroService],
   exports: [FinanceiroService],

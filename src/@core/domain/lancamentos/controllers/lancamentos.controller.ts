@@ -12,13 +12,14 @@ export class LancamentosController {
   listar(
     @Query('tipo') tipo?: string,
     @Query('id_categoria') idCategoria?: string,
+    @Query('id_conta') idConta?: string,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
     return this.service.listarFiltrado(
-      { tipo, id_categoria: idCategoria ? +idCategoria : undefined, start, end },
+      { tipo, id_categoria: idCategoria ? +idCategoria : undefined, id_conta: idConta ? +idConta : undefined, start, end },
       lerPaginacao(limit, offset),
     );
   }

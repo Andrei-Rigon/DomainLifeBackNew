@@ -4,13 +4,24 @@ import { PagarService } from '../../pagar/services/pagar.service';
 import { ReceberService } from '../../receber/services/receber.service';
 import { CategoriasFinanceirasService } from '../../categorias-financeiras/services/categorias-financeiras.service';
 import { PerfilFinanceiroService } from '../../perfil-financeiro/services/perfil-financeiro.service';
+import { ContasBancariasService } from '../../contas-bancarias/services/contas-bancarias.service';
 import { fimDoMes, hoje, inicioDoMes, mesAnterior, mesAtual } from '../../shared/date.helper';
 import { arredondar2, somar } from '../../shared/money';
+import { contaNoCaixa } from '../../shared/contabilizar';
 
 const CATEGORIA_PARCELAS = 'Contas (parcelas pagas)';
 const CATEGORIA_RECEBIMENTOS = 'Contas a receber';
 const SEM_CATEGORIA = 'Sem categoria';
 const INICIO_DOS_TEMPOS = '1900-01-01';
+
+export interface SaldoConta {
+  id: number;
+  nome: string;
+  tipo: string; // corrente | investimento | cartao
+  ativa: boolean;
+  saldo_inicial: number;
+  saldo: number;
+}
 
 export interface TotaisPeriodo {
   entradas: number;
@@ -26,6 +37,9 @@ export interface TotaisPeriodo {
  *  - ENTRADAS = receitas lançadas + cobranças a receber RECEBIDAS (pela data de recebimento);
  *  - SAÍDAS   = despesas lançadas + parcelas de contas PAGAS (pela data de pagamento).
  * Assim dar baixa numa parcela/cobrança já aparece no saldo, sem lançar duas vezes.
+ * Registros com contabilizar = false (ex.: pagos no cartão) ficam fora de tudo isso.
+ * Transferências (tipo = transferencia) só movem dinheiro entre contas bancárias:
+ * nunca entram em entradas, saídas nem no saldo do mês.
  */
 @Injectable()
 export class FinanceiroService {
@@ -35,13 +49,18 @@ export class FinanceiroService {
     private readonly receber: ReceberService,
     private readonly categorias: CategoriasFinanceirasService,
     private readonly perfil: PerfilFinanceiroService,
+    private readonly contasBancarias: ContasBancariasService,
   ) {}
 
   async totais(start: string, end: string, idCategoria?: number): Promise<TotaisPeriodo> {
-    const lancs = await this.lancamentos.doPeriodo(start, end, idCategoria ? { id_categoria: idCategoria } : {});
+    // Só o que conta no caixa: contabilizar = false fica fora de entradas, saídas e saldo
+    // Transferências também ficam fora: só movem dinheiro entre contas
+    const lancs = (await this.lancamentos.doPeriodo(start, end, idCategoria ? { id_categoria: idCategoria } : {}))
+      .filter(contaNoCaixa)
+      .filter((l) => l.tipo !== 'transferencia');
     // Parcelas de contas não têm categoria financeira: com filtro de categoria ficam de fora
-    const parcelas = idCategoria ? [] : await this.pagar.pagasNoPeriodo(start, end);
-    let recebidas = await this.receber.recebidasNoPeriodo(start, end);
+    const parcelas = idCategoria ? [] : (await this.pagar.pagasNoPeriodo(start, end)).filter(contaNoCaixa);
+    let recebidas = (await this.receber.recebidasNoPeriodo(start, end)).filter(contaNoCaixa);
     if (idCategoria) recebidas = recebidas.filter((r) => Number(r.id_categoria) === idCategoria);
 
     const nomes = new Map((await this.categorias.todas()).map((c) => [Number(c.id), c.nome]));
@@ -133,19 +152,69 @@ export class FinanceiroService {
   }
 
   /**
-   * Saldo acumulado até a data (padrão hoje): saldo inicial do perfil + tudo que
-   * entrou - tudo que saiu desde o começo. Lançamentos com data futura ficam de fora.
+   * Saldo acumulado até a data (padrão hoje). Lançamentos com data futura ficam de fora.
+   *
+   * Cada conta bancária: saldo inicial + receitas - despesas + recebimentos - parcelas pagas
+   * + transferências que chegaram - transferências que saíram (só o que conta no caixa).
+   * O que não tem conta vai para "sem conta" (assim, sem nenhuma conta cadastrada, o
+   * resultado é igual ao de antes: saldo inicial do perfil + entradas - saídas).
+   *
+   *  - saldo (disponível) = saldo inicial do perfil + contas correntes + sem conta
+   *  - patrimonio         = saldo + investimentos + cartões
    */
   async saldo(ate: string = hoje()) {
     const perfil: any = await this.perfil.obter();
     const totais = await this.totais(INICIO_DOS_TEMPOS, ate);
-    const saldoInicial = arredondar2(perfil.saldo_inicial ?? 0);
+    const saldoPerfil = arredondar2(perfil.saldo_inicial ?? 0);
+
+    const contas = await this.contasBancarias.todas();
+    const lancs = (await this.lancamentos.doPeriodo(INICIO_DOS_TEMPOS, ate)).filter(contaNoCaixa);
+    const parcelas = (await this.pagar.pagasNoPeriodo(INICIO_DOS_TEMPOS, ate)).filter(contaNoCaixa);
+    const recebidas = (await this.receber.recebidasNoPeriodo(INICIO_DOS_TEMPOS, ate)).filter(contaNoCaixa);
+
+    // Movimentos por conta ('sem' = sem conta)
+    const movimentos = new Map<string, Array<number | string | null>>();
+    const mover = (idConta: unknown, valor: number | string | null) => {
+      const chave = idConta == null ? 'sem' : String(idConta);
+      movimentos.set(chave, [...(movimentos.get(chave) ?? []), valor]);
+    };
+    for (const l of lancs) {
+      const valor = Number(l.valor);
+      if (l.tipo === 'transferencia') {
+        mover(l.id_conta_bancaria, -valor);
+        mover(l.id_conta_destino, valor);
+      } else {
+        mover(l.id_conta_bancaria, l.tipo === 'receita' ? valor : -valor);
+      }
+    }
+    for (const p of parcelas) mover((p as any).id_conta_bancaria, -Number(p.valor_pago ?? p.valor_parcela));
+    for (const r of recebidas) mover((r as any).id_conta_bancaria, Number(r.valor_recebido ?? r.valor));
+
+    const saldoContas: SaldoConta[] = contas.map((c) => {
+      const inicial = arredondar2(c.saldo_inicial);
+      return {
+        id: Number(c.id),
+        nome: c.nome,
+        tipo: c.tipo,
+        ativa: c.ativa !== false,
+        saldo_inicial: inicial,
+        saldo: somar([inicial, ...(movimentos.get(String(c.id)) ?? [])]),
+      };
+    });
+    const semConta = somar(movimentos.get('sem') ?? []);
+    const correntes = saldoContas.filter((c) => c.tipo === 'corrente');
+    const saldoDisponivel = somar([saldoPerfil, semConta, ...correntes.map((c) => c.saldo)]);
+
     return {
       ate,
-      saldo_inicial: saldoInicial,
+      // "Inicial" do card: saldo inicial do perfil + saldos iniciais das contas correntes
+      saldo_inicial: somar([saldoPerfil, ...correntes.map((c) => c.saldo_inicial)]),
       entradas: totais.entradas,
       saidas: totais.saidas,
-      saldo: somar([saldoInicial, totais.entradas, -totais.saidas]),
+      saldo: saldoDisponivel,
+      contas: saldoContas,
+      sem_conta: semConta,
+      patrimonio: somar([saldoDisponivel, ...saldoContas.filter((c) => c.tipo !== 'corrente').map((c) => c.saldo)]),
     };
   }
 
@@ -169,16 +238,22 @@ export class FinanceiroService {
     const recebidas = await this.receber.recebidasNoPeriodo(start, end);
     const nomes = new Map((await this.categorias.todas()).map((c) => [Number(c.id), c.nome]));
     const nomeDe = (id: unknown, padrao: string) => (id == null ? padrao : (nomes.get(Number(id)) ?? padrao));
+    const contas = new Map((await this.contasBancarias.todas()).map((c) => [Number(c.id), c.nome]));
+    const contaDe = (id: unknown) => (id == null ? '' : (contas.get(Number(id)) ?? ''));
 
     const linhas = [
       ...lancs.map((l) => ({
         data: l.data,
         tipo: l.tipo,
         descricao: l.descricao ?? '',
-        categoria: nomeDe(l.id_categoria, SEM_CATEGORIA),
+        categoria: l.tipo === 'transferencia' ? '' : nomeDe(l.id_categoria, SEM_CATEGORIA),
         valor: Number(l.valor),
         forma: l.forma_pagamento ?? '',
         origem: l.origem,
+        // Transferência nunca entra nos totais, por isso sai como "Não"
+        contabilizar: l.tipo !== 'transferencia' && contaNoCaixa(l),
+        conta: contaDe(l.id_conta_bancaria),
+        destino: contaDe(l.id_conta_destino),
       })),
       ...parcelas.map((p) => ({
         data: p.data_pagamento as string,
@@ -188,6 +263,9 @@ export class FinanceiroService {
         valor: Number(p.valor_pago ?? p.valor_parcela),
         forma: '',
         origem: 'parcela',
+        contabilizar: contaNoCaixa(p),
+        conta: contaDe((p as any).id_conta_bancaria),
+        destino: '',
       })),
       ...recebidas.map((r) => ({
         data: r.data_recebimento as string,
@@ -197,12 +275,19 @@ export class FinanceiroService {
         valor: Number(r.valor_recebido ?? r.valor),
         forma: '',
         origem: 'recebimento',
+        contabilizar: contaNoCaixa(r),
+        conta: contaDe((r as any).id_conta_bancaria),
+        destino: '',
       })),
     ].sort((a, b) => a.data.localeCompare(b.data));
 
-    const cabecalho = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor', 'Forma de pagamento', 'Origem'];
+    // O CSV traz TODAS as linhas (para bater com o extrato), com a coluna "Contabilizado".
+    // Quem não é contabilizado não entra nos totais da API; no Excel dá para filtrar por ela.
+    const cabecalho = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor', 'Forma de pagamento', 'Origem', 'Contabilizado', 'Conta', 'Conta destino'];
     const corpo = linhas.map((l) =>
-      [l.data, l.tipo, l.descricao, l.categoria, l.valor.toFixed(2).replace('.', ','), l.forma, l.origem].map(celulaCsv).join(';'),
+      [l.data, l.tipo, l.descricao, l.categoria, l.valor.toFixed(2).replace('.', ','), l.forma, l.origem, l.contabilizar ? 'Sim' : 'Não', l.conta, l.destino]
+        .map(celulaCsv)
+        .join(';'),
     );
     return '﻿' + [cabecalho.join(';'), ...corpo].join('\r\n') + '\r\n';
   }
