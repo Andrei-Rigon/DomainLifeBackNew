@@ -9,6 +9,7 @@ import {
   BelongsTo,
 } from 'sequelize-typescript';
 import { CategoriaFinanceira } from '../../categorias-financeiras/sequelize/categoria-financeira.model';
+import { ContaBancaria } from '../../contas-bancarias/sequelize/conta-bancaria.model';
 
 /** Gasto ou receita avulso do dia a dia (diferente de `pagar`, que são parcelas de contas). */
 @Table({
@@ -23,8 +24,8 @@ export class Lancamento extends Model<Lancamento> {
   @Column(DataType.BIGINT)
   declare id: number;
 
-  // despesa | receita
-  @Column({ type: DataType.STRING(10), allowNull: false })
+  // despesa | receita | transferencia (transferência não entra em entradas/saídas: só move entre contas)
+  @Column({ type: DataType.STRING(15), allowNull: false })
   declare tipo: string;
 
   @Column({ type: DataType.DECIMAL(12, 2), allowNull: false })
@@ -57,4 +58,20 @@ export class Lancamento extends Model<Lancamento> {
   // Contabilizar no caixa (migration 004). false = fora dos totais/saldo (ex.: pago no cartão).
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
   declare contabilizar: boolean;
+
+  // Conta de onde o dinheiro saiu/entrou (migration 005). Nas transferências: a conta de ORIGEM.
+  @ForeignKey(() => ContaBancaria)
+  @Column({ type: DataType.BIGINT, allowNull: true })
+  declare id_conta_bancaria: number | null;
+
+  @BelongsTo(() => ContaBancaria, 'id_conta_bancaria')
+  declare conta_bancaria?: ContaBancaria;
+
+  // Só nas transferências: conta de DESTINO.
+  @ForeignKey(() => ContaBancaria)
+  @Column({ type: DataType.BIGINT, allowNull: true })
+  declare id_conta_destino: number | null;
+
+  @BelongsTo(() => ContaBancaria, 'id_conta_destino')
+  declare conta_destino?: ContaBancaria;
 }

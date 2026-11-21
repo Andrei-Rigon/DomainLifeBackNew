@@ -26,6 +26,8 @@ import { CielModule } from '../src/@core/domain/ciel/module/ciel.module';
 import { ReceberModule } from '../src/@core/domain/receber/module/receber.module';
 import { Receber } from '../src/@core/infraestructure/receber/sequelize/receber.model';
 import { CielService } from '../src/@core/domain/ciel/services/ciel.service';
+import { ContasBancariasModule } from '../src/@core/domain/contas-bancarias/module/contas-bancarias.module';
+import { ContaBancaria } from '../src/@core/infraestructure/contas-bancarias/sequelize/conta-bancaria.model';
 
 import { Appointment } from '../src/@core/infraestructure/appointments/sequelize/appointment.model';
 import { AvisoAgendamento } from '../src/@core/infraestructure/appointments/sequelize/aviso-agendamento.model';
@@ -48,6 +50,7 @@ import { Aniversario } from '../src/@core/infraestructure/aniversarios/sequelize
 const MODELS = [
   Appointment, AvisoAgendamento, Notes, Objectives, ObjectivesCategories, Counts, CategoriaConta, Pagar,
   CategoriaFinanceira, Lancamento, PerfilFinanceiro, Lembrete, Tarefa, MetaSemanal, Compra, Peso, Aniversario, Receber,
+  ContaBancaria,
 ];
 
 // Conexão Sequelize que só registra os models (nunca conecta no banco)
@@ -83,6 +86,7 @@ describe('Módulos reais: injeção de dependência e models', () => {
         DashboardModule,
         CielModule,
         ReceberModule,
+        ContasBancariasModule,
       ],
     }).compile();
 
@@ -97,5 +101,7 @@ describe('Módulos reais: injeção de dependência e models', () => {
     expect(Object.keys(Objectives.associations)).toContain('categoria');
     expect(Object.keys(Counts.associations)).toContain('categoria');
     expect(Object.keys(Receber.associations)).toContain('categoria');
+    expect(Object.keys(Lancamento.associations)).toEqual(expect.arrayContaining(['conta_bancaria', 'conta_destino']));
+    expect(Object.keys(Pagar.associations)).toContain('conta_bancaria');
   });
 });

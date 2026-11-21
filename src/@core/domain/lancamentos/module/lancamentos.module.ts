@@ -5,9 +5,10 @@ import { LancamentosController } from '../controllers/lancamentos.controller';
 import { LancamentosProvider } from '../providers/lancamentos.providers';
 import { Lancamento } from '../entities/lancamento.entity';
 import { CategoriaFinanceira } from '../../categorias-financeiras/entities/categoria-financeira.entity';
+import { ContaBancaria } from '../../contas-bancarias/entities/conta-bancaria.entity';
 
 @Module({
-  imports: [SequelizeModule.forFeature([Lancamento, CategoriaFinanceira])],
+  imports: [SequelizeModule.forFeature([Lancamento, CategoriaFinanceira, ContaBancaria])],
   controllers: [LancamentosController],
   providers: [LancamentosService, ...LancamentosProvider],
   exports: [LancamentosService],

@@ -73,7 +73,8 @@ describe('Financeiro completo: receber, saldo e evolução', () => {
     await api.post('/lancamentos', { tipo: 'despesa', valor: 999, data: somarDias(hoje(), 1) }).expect(201); // amanhã: fora do saldo de hoje
 
     const saldo = (await api.get('/financeiro/saldo').expect(200)).body;
-    expect(saldo).toEqual({ ate: hoje(), saldo_inicial: 1000, entradas: 1300, saidas: 100, saldo: 2200 });
+    // Sem contas bancárias: tudo cai em "sem conta" e o saldo é o de sempre
+    expect(saldo).toEqual({ ate: hoje(), saldo_inicial: 1000, entradas: 1300, saidas: 100, saldo: 2200, contas: [], sem_conta: 1200, patrimonio: 2200 });
 
     const amanha = (await api.get(`/financeiro/saldo?ate=${somarDias(hoje(), 1)}`).expect(200)).body;
     expect(amanha.saldo).toBe(1201);
@@ -100,6 +101,6 @@ describe('Financeiro completo: receber, saldo e evolução', () => {
       r.on('end', () => cb(null, Buffer.concat(partes)));
     });
     const linhas = (res.body as Buffer).toString('utf8').split('\r\n');
-    expect(linhas.some((l) => l.includes('Freela') && l.endsWith(';recebimento') && l.includes('800,00'))).toBe(true);
+    expect(linhas.some((l) => l.includes('Freela') && l.includes(';recebimento;') && l.includes('800,00'))).toBe(true);
   });
 });

@@ -53,4 +53,10 @@ export class CreatePagarDto {
   @Transform(paraBooleano)
   @IsBoolean({ message: 'contabilizar deve ser true ou false' })
   contabilizar?: boolean;
+
+  // Conta bancária de onde sai/entra o dinheiro (opcional)
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'id_conta_bancaria deve ser o id de uma conta bancária' })
+  id_conta_bancaria?: number | null;
 }

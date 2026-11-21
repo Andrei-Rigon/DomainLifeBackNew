@@ -51,6 +51,8 @@ import { ReceberController } from '../../src/@core/domain/receber/controllers/re
 import { ReceberService } from '../../src/@core/domain/receber/services/receber.service';
 import { CielController } from '../../src/@core/domain/ciel/controllers/ciel.controller';
 import { CielService } from '../../src/@core/domain/ciel/services/ciel.service';
+import { ContasBancariasController } from '../../src/@core/domain/contas-bancarias/controllers/contas-bancarias.controller';
+import { ContasBancariasService } from '../../src/@core/domain/contas-bancarias/services/contas-bancarias.service';
 
 export const API_KEY_TESTE = 'chave-de-teste-123';
 
@@ -73,6 +75,7 @@ const TOKENS = [
   'PESO_REPOSITORY',
   'ANIVERSARIOS_REPOSITORY',
   'RECEBER_REPOSITORY',
+  'CONTAS_BANCARIAS_REPOSITORY',
 ];
 
 /**
@@ -107,6 +110,7 @@ export async function criarAppEmMemoria(): Promise<{ app: INestApplication; repo
       DashboardController,
       CielController,
       ReceberController,
+      ContasBancariasController,
     ],
     providers: [
       AppService,
@@ -131,6 +135,7 @@ export async function criarAppEmMemoria(): Promise<{ app: INestApplication; repo
       DashboardService,
       CielService,
       ReceberService,
+      ContasBancariasService,
       { provide: APP_GUARD, useClass: ApiKeyGuard },
       { provide: APP_INTERCEPTOR, useClass: NormalizarRespostaInterceptor },
       ...Object.entries(repos).map(([provide, useValue]) => ({ provide, useValue })),

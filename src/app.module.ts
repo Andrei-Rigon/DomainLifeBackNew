@@ -26,6 +26,7 @@ import { DashboardModule } from './@core/domain/dashboard/module/dashboard.modul
 import { CielModule } from './@core/domain/ciel/module/ciel.module';
 import { ReceberModule } from './@core/domain/receber/module/receber.module';
 import { PagarModule } from './@core/domain/pagar/module/pagar.module';
+import { ContasBancariasModule } from './@core/domain/contas-bancarias/module/contas-bancarias.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { PagarModule } from './@core/domain/pagar/module/pagar.module';
     PagarModule,
     CategoriasFinanceirasModule,
     LancamentosModule,
+    ContasBancariasModule,
     ReceberModule,
     FinanceiroModule,
     PerfilFinanceiroModule,
