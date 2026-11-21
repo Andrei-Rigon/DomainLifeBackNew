@@ -1,6 +1,7 @@
+import { Transform, Type } from 'class-transformer';
+import { paraBooleano } from '../../shared/contabilizar';
 import { PartialType } from '@nestjs/mapped-types';
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, IsString, Matches, MaxLength, Min, IsBoolean } from 'class-validator';
 
 export const TIPOS_LANCAMENTO = ['despesa', 'receita'] as const;
 export const FORMAS_PAGAMENTO = ['pix', 'debito', 'credito', 'dinheiro', 'outro'] as const;
@@ -41,6 +42,12 @@ export class CreateLancamentoDto {
   @IsOptional()
   @IsString()
   observacao?: string;
+
+  // Contabilizar no caixa. Se não vier: true (ou o padrão da conta, nas parcelas).
+  @IsOptional()
+  @Transform(paraBooleano)
+  @IsBoolean({ message: 'contabilizar deve ser true ou false' })
+  contabilizar?: boolean;
 }
 
 export class UpdateLancamentoDto extends PartialType(CreateLancamentoDto) {}

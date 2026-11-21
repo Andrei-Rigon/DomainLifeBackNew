@@ -1,6 +1,7 @@
+import { Transform, Type } from 'class-transformer';
+import { paraBooleano } from '../../shared/contabilizar';
 import { PartialType } from '@nestjs/mapped-types';
-import { Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, IsBoolean } from 'class-validator';
 
 const DATA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -38,6 +39,12 @@ export class CreateReceberDto {
   @IsOptional()
   @Matches(DATA, { message: 'data_recebimento deve estar no formato YYYY-MM-DD' })
   data_recebimento?: string;
+
+  // Contabilizar no caixa. Se não vier: true (ou o padrão da conta, nas parcelas).
+  @IsOptional()
+  @Transform(paraBooleano)
+  @IsBoolean({ message: 'contabilizar deve ser true ou false' })
+  contabilizar?: boolean;
 }
 
 export class UpdateReceberDto extends PartialType(CreateReceberDto) {}
@@ -69,4 +76,10 @@ export class GerarReceberDto {
   @Type(() => Number)
   @IsInt()
   id_categoria?: number;
+
+  // Contabilizar no caixa. Se não vier: true (ou o padrão da conta, nas parcelas).
+  @IsOptional()
+  @Transform(paraBooleano)
+  @IsBoolean({ message: 'contabilizar deve ser true ou false' })
+  contabilizar?: boolean;
 }

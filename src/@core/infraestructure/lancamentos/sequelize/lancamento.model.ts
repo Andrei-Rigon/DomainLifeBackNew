@@ -53,4 +53,8 @@ export class Lancamento extends Model<Lancamento> {
 
   @Column({ type: DataType.TEXT, allowNull: true })
   declare observacao: string | null;
+
+  // Contabilizar no caixa (migration 004). false = fora dos totais/saldo (ex.: pago no cartão).
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
+  declare contabilizar: boolean;
 }

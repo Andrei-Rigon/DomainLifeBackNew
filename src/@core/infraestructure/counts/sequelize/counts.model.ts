@@ -53,4 +53,8 @@ export class Counts extends Model<Counts> {
 
   @BelongsTo(() => CategoriaConta)
   declare categoria?: CategoriaConta;
+
+  // Contabilizar no caixa (migration 004). false = fora dos totais/saldo (ex.: pago no cartão).
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
+  declare contabilizar: boolean;
 }

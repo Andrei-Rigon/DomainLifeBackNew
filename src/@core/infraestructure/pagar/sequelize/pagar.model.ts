@@ -58,4 +58,8 @@ export class Pagar extends Model<Pagar> {
   // Quando a parcela foi avisada em GET /notificacoes/pendentes (coluna nova: migrations/002)
   @Column({ type: DataType.DATE, allowNull: true })
   declare notificado_em: Date | null;
+
+  // Contabilizar no caixa (migration 004). false = fora dos totais/saldo (ex.: pago no cartão).
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
+  declare contabilizar: boolean;
 }

@@ -63,6 +63,7 @@ export class ReceberService extends BaseCrudService<Receber> {
         valor: dto.valor,
         valor_recebido: null,
         data_vencimento: somarMeses(dto.primeiro_vencimento, i),
+        contabilizar: dto.contabilizar ?? true,
         data_recebimento: null,
       };
       return { ...item, ...this.situacao(item) };

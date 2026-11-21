@@ -1,14 +1,6 @@
-import { Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsInt,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { paraBooleano } from '../../shared/contabilizar';
+import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength, Min, IsBoolean } from 'class-validator';
 import { TipoConta } from '../enums/tipo-conta.enum';
 
 export { TipoConta };
@@ -50,4 +42,10 @@ export class CreateCountDto {
   @Type(() => Number)
   @IsInt()
   id_categoria_conta?: number | null;
+
+  // Contabilizar no caixa. Se não vier: true (ou o padrão da conta, nas parcelas).
+  @IsOptional()
+  @Transform(paraBooleano)
+  @IsBoolean({ message: 'contabilizar deve ser true ou false' })
+  contabilizar?: boolean;
 }

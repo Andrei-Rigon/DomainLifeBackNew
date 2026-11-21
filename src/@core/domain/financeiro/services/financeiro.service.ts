@@ -6,6 +6,7 @@ import { CategoriasFinanceirasService } from '../../categorias-financeiras/servi
 import { PerfilFinanceiroService } from '../../perfil-financeiro/services/perfil-financeiro.service';
 import { fimDoMes, hoje, inicioDoMes, mesAnterior, mesAtual } from '../../shared/date.helper';
 import { arredondar2, somar } from '../../shared/money';
+import { contaNoCaixa } from '../../shared/contabilizar';
 
 const CATEGORIA_PARCELAS = 'Contas (parcelas pagas)';
 const CATEGORIA_RECEBIMENTOS = 'Contas a receber';
@@ -26,6 +27,7 @@ export interface TotaisPeriodo {
  *  - ENTRADAS = receitas lançadas + cobranças a receber RECEBIDAS (pela data de recebimento);
  *  - SAÍDAS   = despesas lançadas + parcelas de contas PAGAS (pela data de pagamento).
  * Assim dar baixa numa parcela/cobrança já aparece no saldo, sem lançar duas vezes.
+ * Registros com contabilizar = false (ex.: pagos no cartão) ficam fora de tudo isso.
  */
 @Injectable()
 export class FinanceiroService {
@@ -38,10 +40,11 @@ export class FinanceiroService {
   ) {}
 
   async totais(start: string, end: string, idCategoria?: number): Promise<TotaisPeriodo> {
-    const lancs = await this.lancamentos.doPeriodo(start, end, idCategoria ? { id_categoria: idCategoria } : {});
+    // Só o que conta no caixa: contabilizar = false fica fora de entradas, saídas e saldo
+    const lancs = (await this.lancamentos.doPeriodo(start, end, idCategoria ? { id_categoria: idCategoria } : {})).filter(contaNoCaixa);
     // Parcelas de contas não têm categoria financeira: com filtro de categoria ficam de fora
-    const parcelas = idCategoria ? [] : await this.pagar.pagasNoPeriodo(start, end);
-    let recebidas = await this.receber.recebidasNoPeriodo(start, end);
+    const parcelas = idCategoria ? [] : (await this.pagar.pagasNoPeriodo(start, end)).filter(contaNoCaixa);
+    let recebidas = (await this.receber.recebidasNoPeriodo(start, end)).filter(contaNoCaixa);
     if (idCategoria) recebidas = recebidas.filter((r) => Number(r.id_categoria) === idCategoria);
 
     const nomes = new Map((await this.categorias.todas()).map((c) => [Number(c.id), c.nome]));
@@ -179,6 +182,7 @@ export class FinanceiroService {
         valor: Number(l.valor),
         forma: l.forma_pagamento ?? '',
         origem: l.origem,
+        contabilizar: contaNoCaixa(l),
       })),
       ...parcelas.map((p) => ({
         data: p.data_pagamento as string,
@@ -188,6 +192,7 @@ export class FinanceiroService {
         valor: Number(p.valor_pago ?? p.valor_parcela),
         forma: '',
         origem: 'parcela',
+        contabilizar: contaNoCaixa(p),
       })),
       ...recebidas.map((r) => ({
         data: r.data_recebimento as string,
@@ -197,12 +202,17 @@ export class FinanceiroService {
         valor: Number(r.valor_recebido ?? r.valor),
         forma: '',
         origem: 'recebimento',
+        contabilizar: contaNoCaixa(r),
       })),
     ].sort((a, b) => a.data.localeCompare(b.data));
 
-    const cabecalho = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor', 'Forma de pagamento', 'Origem'];
+    // O CSV traz TODAS as linhas (para bater com o extrato), com a coluna "Contabilizado".
+    // Quem não é contabilizado não entra nos totais da API; no Excel dá para filtrar por ela.
+    const cabecalho = ['Data', 'Tipo', 'Descrição', 'Categoria', 'Valor', 'Forma de pagamento', 'Origem', 'Contabilizado'];
     const corpo = linhas.map((l) =>
-      [l.data, l.tipo, l.descricao, l.categoria, l.valor.toFixed(2).replace('.', ','), l.forma, l.origem].map(celulaCsv).join(';'),
+      [l.data, l.tipo, l.descricao, l.categoria, l.valor.toFixed(2).replace('.', ','), l.forma, l.origem, l.contabilizar ? 'Sim' : 'Não']
+        .map(celulaCsv)
+        .join(';'),
     );
     return '﻿' + [cabecalho.join(';'), ...corpo].join('\r\n') + '\r\n';
   }

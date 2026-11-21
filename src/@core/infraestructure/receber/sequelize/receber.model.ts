@@ -46,4 +46,8 @@ export class Receber extends Model<Receber> {
   // Pendente | Recebida | Atrasada (calculado pelo service)
   @Column({ type: DataType.STRING(10), allowNull: false, defaultValue: 'Pendente' })
   declare status: string;
+
+  // Contabilizar no caixa (migration 004). false = fora dos totais/saldo (ex.: pago no cartão).
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
+  declare contabilizar: boolean;
 }

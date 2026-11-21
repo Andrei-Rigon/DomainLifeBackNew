@@ -61,7 +61,10 @@ export class AppointmentsService {
     // Se a data ou a hora mudou, recalcula data_hora_evento com os valores já mesclados
     const mexeuNoHorario = dados.data_evento !== undefined || dados.hora_evento !== undefined;
     const dataFinal = dados.data_evento ?? atual.data_evento;
-    const horaFinal = dados.hora_evento ?? atual.hora_evento ?? undefined;
+    // hora_evento: null = tirar a hora (vira "dia todo"). Só usa a hora atual quando
+    // o campo não veio no pedido; antes o null caía na hora antiga e data_hora_evento ficava errada.
+    const horaFinal =
+      dados.hora_evento !== undefined ? (dados.hora_evento ?? undefined) : (atual.hora_evento ?? undefined);
 
     // Avisos informados SUBSTITUEM os que ainda não foram enviados
     const querAvisos = avisos !== undefined || avisar !== undefined;
