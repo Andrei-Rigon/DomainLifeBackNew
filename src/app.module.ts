@@ -1,3 +1,4 @@
+import * as pg from 'pg';
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ApiKeyGuard } from './@core/domain/shared/api-key.guard';
@@ -37,6 +38,7 @@ import { PagarModule } from './@core/domain/pagar/module/pagar.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         dialect: 'postgres',
+        dialectModule: pg,
         host: configService.get<string>('DB_HOST'),
         port: configService.get<number>('DB_PORT'),
         username: configService.get<string>('DB_USERNAME'),
